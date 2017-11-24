@@ -11,6 +11,7 @@ typedef struct ncx_slab_page_s  ncx_slab_page_t;
 struct ncx_slab_page_s {
     uintptr_t         slab;
     ncx_slab_page_t  *next;
+/*    uintptr_t         next;*/
     uintptr_t         prev;
 };
 
