@@ -186,8 +186,7 @@ ncx_slab_alloc_locked(ncx_slab_pool_t *pool, size_t size)
 
         goto done;
     }
-/* small size allocate */    
-#if 0
+
     if (size > pool->min_size) {
         shift = 1;
         for (s = size - 1; s >>= 1; shift++) { /* void */ }
@@ -200,15 +199,15 @@ ncx_slab_alloc_locked(ncx_slab_pool_t *pool, size_t size)
     }
 
     slots = (ncx_slab_page_t *) ((u_char *) pool + sizeof(ncx_slab_pool_t));
-    page =(uintptr_t)(slots[slot].next)+POOL_BASE_ADDR_LIUWEI;
+    page =(ncx_slab_page_t*)((uintptr_t)(slots[slot].next)+POOL_BASE_ADDR_LIUWEI);
 
-    if ( ((uintptr_t)(page->next)+POOL_BASE_ADDR_LIUWEI)!=(uintptr_t)(page) ) {
-
+    if ( ((uintptr_t)(page->next)+POOL_BASE_ADDR_LIUWEI)!=(uintptr_t)(page) )
+    {
         if (shift < ncx_slab_exact_shift) {
 
             do {
-                p = (page - pool->pages) << ncx_pagesize_shift;
-                bitmap = (uintptr_t *) (pool->start + p);
+                p = (page - (ncx_slab_page_t*)((uintptr_t)(pool->pages)+POOL_BASE_ADDR_LIUWEI) ) << ncx_pagesize_shift;
+                bitmap = (uintptr_t *) (pool->start + POOL_BASE_ADDR_LIUWEI + p);
 
                 map = (1 << (ncx_pagesize_shift - shift))
                           / (sizeof(uintptr_t) * 8);
@@ -236,10 +235,9 @@ ncx_slab_alloc_locked(ncx_slab_pool_t *pool, size_t size)
                                      }
                                 }
 
-                                prev = (ncx_slab_page_t *)
-                                            (page->prev & ~NCX_SLAB_PAGE_MASK);
+                                prev = (ncx_slab_page_t *)( (page->prev+POOL_BASE_ADDR_LIUWEI) & ~NCX_SLAB_PAGE_MASK);
                                 prev->next = page->next;
-                                page->next->prev = page->prev;
+                                ((ncx_slab_page_t*)((uintptr_t)(page->next)+POOL_BASE_ADDR_LIUWEI))->prev = page->prev;
 
                                 page->next = NULL;
                                 page->prev = NCX_SLAB_SMALL;
@@ -333,7 +331,7 @@ ncx_slab_alloc_locked(ncx_slab_pool_t *pool, size_t size)
             } while (page);
         }
     }
-
+#if 0
     page = ncx_slab_alloc_pages(pool, 1);
 
     if (page) {
