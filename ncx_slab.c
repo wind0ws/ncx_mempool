@@ -204,7 +204,7 @@ ncx_slab_alloc_locked(ncx_slab_pool_t *pool, size_t size)
     if ( ((uintptr_t)(page->next)+POOL_BASE_ADDR_LIUWEI)!=(uintptr_t)(page) )
     {
         if (shift < ncx_slab_exact_shift) {
-
+            printf(" <exact \n");
             do {
                 p = (page - (ncx_slab_page_t*)((uintptr_t)(pool->pages)+POOL_BASE_ADDR_LIUWEI) ) << ncx_pagesize_shift;
                 bitmap = (uintptr_t *) (pool->start + POOL_BASE_ADDR_LIUWEI + p);
@@ -250,12 +250,12 @@ ncx_slab_alloc_locked(ncx_slab_pool_t *pool, size_t size)
                     }
                 }
 
-                page = page->next;
+                page = (ncx_slab_page_t*)((uintptr_t)(page->next)+POOL_BASE_ADDR_LIUWEI);
 
             } while (page);
 
         } else if (shift == ncx_slab_exact_shift) {
-
+               printf(" =exact \n");
             do {
                 if (page->slab != NCX_SLAB_BUSY) {
 
@@ -267,29 +267,28 @@ ncx_slab_alloc_locked(ncx_slab_pool_t *pool, size_t size)
                         page->slab |= m;
   
                         if (page->slab == NCX_SLAB_BUSY) {
-                            prev = (ncx_slab_page_t *)
-                                            (page->prev & ~NCX_SLAB_PAGE_MASK);
+                            prev = (ncx_slab_page_t *)( (page->prev+POOL_BASE_ADDR_LIUWEI) & ~NCX_SLAB_PAGE_MASK);
                             prev->next = page->next;
-                            page->next->prev = page->prev;
+                            ((ncx_slab_page_t*)((uintptr_t)(page->next)+POOL_BASE_ADDR_LIUWEI))->prev = page->prev;
 
                             page->next = NULL;
                             page->prev = NCX_SLAB_EXACT;
                         }
 
-                        p = (page - pool->pages) << ncx_pagesize_shift;
+                        p = (page - (ncx_slab_page_t*)((uintptr_t)(pool->pages)+POOL_BASE_ADDR_LIUWEI) ) << ncx_pagesize_shift;
                         p += i << shift;
-                        p += (uintptr_t) pool->start;
+                        p += (uintptr_t)(pool->start)+POOL_BASE_ADDR_LIUWEI;
 
                         goto done;
                     }
                 }
 
-                page = page->next;
+                page = (ncx_slab_page_t*)((uintptr_t)(page->next)+POOL_BASE_ADDR_LIUWEI);
 
             } while (page);
 
         } else { /* shift > ncx_slab_exact_shift */
-
+            printf(" >exact \n");
             n = ncx_pagesize_shift - (page->slab & NCX_SLAB_SHIFT_MASK);
             n = 1 << n;
             n = ((uintptr_t) 1 << n) - 1;
@@ -309,35 +308,34 @@ ncx_slab_alloc_locked(ncx_slab_pool_t *pool, size_t size)
                         page->slab |= m;
 
                         if ((page->slab & NCX_SLAB_MAP_MASK) == mask) {
-                            prev = (ncx_slab_page_t *)
-                                            (page->prev & ~NCX_SLAB_PAGE_MASK);
+                            prev = (ncx_slab_page_t *)( (page->prev+POOL_BASE_ADDR_LIUWEI) & ~NCX_SLAB_PAGE_MASK);
                             prev->next = page->next;
-                            page->next->prev = page->prev;
+                            ((ncx_slab_page_t*)( (uintptr_t)(page->next) + POOL_BASE_ADDR_LIUWEI ))->prev = page->prev;
 
                             page->next = NULL;
                             page->prev = NCX_SLAB_BIG;
                         }
 
-                        p = (page - pool->pages) << ncx_pagesize_shift;
+                        p = (page - (ncx_slab_page_t*)(pool->pages +POOL_BASE_ADDR_LIUWEI)) << ncx_pagesize_shift;
                         p += i << shift;
-                        p += (uintptr_t) pool->start;
+                        p += (uintptr_t)(pool->start)+POOL_BASE_ADDR_LIUWEI;
 
                         goto done;
                     }
                 }
 
-                page = page->next;
+                page = (ncx_slab_page_t*)((uintptr_t)(page->next)+POOL_BASE_ADDR_LIUWEI);
 
             } while (page);
         }
     }
-#if 0
+
     page = ncx_slab_alloc_pages(pool, 1);
 
     if (page) {
         if (shift < ncx_slab_exact_shift) {
-            p = (page - pool->pages) << ncx_pagesize_shift;
-            bitmap = (uintptr_t *) (pool->start + p);
+            p = (page - (ncx_slab_page_t*)((uintptr_t)(pool->pages)+POOL_BASE_ADDR_LIUWEI) ) << ncx_pagesize_shift;
+            bitmap = (uintptr_t *) ( pool->start + POOL_BASE_ADDR_LIUWEI + p);
 
             s = 1 << shift;
             n = (1 << (ncx_pagesize_shift - shift)) / 8 / s;
@@ -355,46 +353,46 @@ ncx_slab_alloc_locked(ncx_slab_pool_t *pool, size_t size)
             }
 
             page->slab = shift;
-            page->next = &slots[slot];
-            page->prev = (uintptr_t) &slots[slot] | NCX_SLAB_SMALL;
+            page->next = (ncx_slab_page_t*)( (uintptr_t)(&slots[slot])-POOL_BASE_ADDR_LIUWEI );
+            page->prev = (uintptr_t)(  (uintptr_t)(&slots[slot])-POOL_BASE_ADDR_LIUWEI ) | NCX_SLAB_SMALL;
 
-            slots[slot].next = page;
+            slots[slot].next = (ncx_slab_page_t*)((uintptr_t)(page) - POOL_BASE_ADDR_LIUWEI );
 
-            p = ((page - pool->pages) << ncx_pagesize_shift) + s * n;
-            p += (uintptr_t) pool->start;
+            p = ((page - (ncx_slab_page_t*)((uintptr_t)(pool->pages)+POOL_BASE_ADDR_LIUWEI)) << ncx_pagesize_shift) + s * n;
+            p += (uintptr_t) (pool->start +POOL_BASE_ADDR_LIUWEI );
 
             goto done;
 
         } else if (shift == ncx_slab_exact_shift) {
 
             page->slab = 1;
-            page->next = &slots[slot];
-            page->prev = (uintptr_t) &slots[slot] | NCX_SLAB_EXACT;
+            page->next = (ncx_slab_page_t*)((uintptr_t)(&slots[slot])-POOL_BASE_ADDR_LIUWEI);
+            page->prev = (uintptr_t)( (uintptr_t)(&slots[slot])-POOL_BASE_ADDR_LIUWEI ) | NCX_SLAB_EXACT;
 
-            slots[slot].next = page;
+            slots[slot].next = (ncx_slab_page_t*)((uintptr_t)(page)-POOL_BASE_ADDR_LIUWEI) ;
 
-            p = (page - pool->pages) << ncx_pagesize_shift;
-            p += (uintptr_t) pool->start;
+            p = (page - (ncx_slab_page_t*)((uintptr_t)(pool->pages)+POOL_BASE_ADDR_LIUWEI) ) << ncx_pagesize_shift;
+            p += (uintptr_t) (pool->start + POOL_BASE_ADDR_LIUWEI);
 
             goto done;
 
         } else { /* shift > ncx_slab_exact_shift */
 
             page->slab = ((uintptr_t) 1 << NCX_SLAB_MAP_SHIFT) | shift;
-            page->next = &slots[slot];
-            page->prev = (uintptr_t) &slots[slot] | NCX_SLAB_BIG;
+            page->next = (ncx_slab_page_t*)((uintptr_t)(&slots[slot])-POOL_BASE_ADDR_LIUWEI);
+            page->prev = (uintptr_t)( (uintptr_t)(&slots[slot]) - POOL_BASE_ADDR_LIUWEI )| NCX_SLAB_BIG;
 
-            slots[slot].next = page;
+            slots[slot].next = (ncx_slab_page_t*)((uintptr_t)(page)-POOL_BASE_ADDR_LIUWEI);
 
-            p = (page - pool->pages) << ncx_pagesize_shift;
-            p += (uintptr_t) pool->start;
+            p = (page - (ncx_slab_page_t*)((uintptr_t)(pool->pages)-POOL_BASE_ADDR_LIUWEI) ) << ncx_pagesize_shift;
+            p += (uintptr_t) ( pool->start + POOL_BASE_ADDR_LIUWEI );
 
             goto done;
         }
     }
 
     p = 0;
-#endif
+
 done:
 
     debug("slab alloc: %p", (void *)p);

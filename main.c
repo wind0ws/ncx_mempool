@@ -20,7 +20,7 @@ int main(int argc, char **argv)
 	int i;
 	for (i = 0; i < 10; i++) 
 	{   
-		p = ncx_slab_alloc(sp, 12800 + i); 
+		p = ncx_slab_alloc(sp, 128 + i); 
 		if (p == NULL) 
 		{   
 			printf("%d\n", i); 
