@@ -11,14 +11,14 @@ else
 CFLAGS+= -DNCX_PTR_SIZE=4
 endif
 
-#CFLAGS+= -pipe  -O0 -Wall -g3 -ggdb3 
-CFLAGS+= -pipe  -O3 
+CFLAGS+= -pipe  -O0 -Wall -g3 -ggdb3 
+#CFLAGS+= -pipe  -O2 
 #定义是否打印日志
 CFLAGS+= -DLOG_LEVEL=4
 #是否与malloc类似模拟脏数据
 #CFLAGS+= -DNCX_DEBUG_MALLOC
 #是否自动合并碎片
-CFLAGS+= -DPAGE_MERGE 
+#CFLAGS+= -DPAGE_MERGE 
 
 TARGET=pool_test
 ALL:$(TARGET)

@@ -123,11 +123,9 @@ ncx_slab_init(ncx_slab_pool_t *pool)
 	pool->pages->slab = ncx_real_pages;
 
 
-    pool->pages= (uintptr_t)(pool->pages)-POOL_BASE_ADDR_LIUWEI;
+    pool->pages= (ncx_slab_page_t*)((uintptr_t)(pool->pages)-POOL_BASE_ADDR_LIUWEI);
 
-    
-
-    
+/* 
     printf("sizeof(ncx_slab_pool_t)=%u\n",sizeof(ncx_slab_pool_t));
     printf("sizeof(ncx_slab_page_t)=%u\n",sizeof(ncx_slab_page_t));
     printf("pool=%u\n",(uintptr_t)(pool));
@@ -143,6 +141,9 @@ ncx_slab_init(ncx_slab_pool_t *pool)
     printf("pool-pages->prev =%u\n", ((ncx_slab_page_t*)( (uintptr_t)(pool->pages)+POOL_BASE_ADDR_LIUWEI ))->prev );
     printf("pool-pages->next =%u\n", ((ncx_slab_page_t*)( (uintptr_t)(pool->pages)+POOL_BASE_ADDR_LIUWEI ))->next );
     printf("real_pages=%u\n",(uintptr_t)ncx_real_pages);
+
+    printf("ncx_slab_max_size=%d ncx_slab_exact_size=%d ncx_pagesize=%d\n",ncx_slab_max_size,ncx_slab_exact_size,ncx_pagesize);
+*/
 
 }
 
@@ -204,7 +205,6 @@ ncx_slab_alloc_locked(ncx_slab_pool_t *pool, size_t size)
     if ( ((uintptr_t)(page->next)+POOL_BASE_ADDR_LIUWEI)!=(uintptr_t)(page) )
     {
         if (shift < ncx_slab_exact_shift) {
-            printf(" <exact \n");
             do {
                 p = (page - (ncx_slab_page_t*)((uintptr_t)(pool->pages)+POOL_BASE_ADDR_LIUWEI) ) << ncx_pagesize_shift;
                 bitmap = (uintptr_t *) (pool->start + POOL_BASE_ADDR_LIUWEI + p);
@@ -255,7 +255,6 @@ ncx_slab_alloc_locked(ncx_slab_pool_t *pool, size_t size)
             } while (page);
 
         } else if (shift == ncx_slab_exact_shift) {
-               printf(" =exact \n");
             do {
                 if (page->slab != NCX_SLAB_BUSY) {
 
@@ -288,7 +287,6 @@ ncx_slab_alloc_locked(ncx_slab_pool_t *pool, size_t size)
             } while (page);
 
         } else { /* shift > ncx_slab_exact_shift */
-            printf(" >exact \n");
             n = ncx_pagesize_shift - (page->slab & NCX_SLAB_SHIFT_MASK);
             n = 1 << n;
             n = ((uintptr_t) 1 << n) - 1;
@@ -316,7 +314,7 @@ ncx_slab_alloc_locked(ncx_slab_pool_t *pool, size_t size)
                             page->prev = NCX_SLAB_BIG;
                         }
 
-                        p = (page - (ncx_slab_page_t*)(pool->pages +POOL_BASE_ADDR_LIUWEI)) << ncx_pagesize_shift;
+                        p = (page - (ncx_slab_page_t*)((uintptr_t)(pool->pages)+POOL_BASE_ADDR_LIUWEI)) << ncx_pagesize_shift;
                         p += i << shift;
                         p += (uintptr_t)(pool->start)+POOL_BASE_ADDR_LIUWEI;
 
@@ -384,7 +382,7 @@ ncx_slab_alloc_locked(ncx_slab_pool_t *pool, size_t size)
 
             slots[slot].next = (ncx_slab_page_t*)((uintptr_t)(page)-POOL_BASE_ADDR_LIUWEI);
 
-            p = (page - (ncx_slab_page_t*)((uintptr_t)(pool->pages)-POOL_BASE_ADDR_LIUWEI) ) << ncx_pagesize_shift;
+            p = (page - (ncx_slab_page_t*)((uintptr_t)(pool->pages)+POOL_BASE_ADDR_LIUWEI) ) << ncx_pagesize_shift;
             p += (uintptr_t) ( pool->start + POOL_BASE_ADDR_LIUWEI );
 
             goto done;
@@ -434,7 +432,7 @@ ncx_slab_free_locked(ncx_slab_pool_t *pool, void *p)
     type = page->prev  & NCX_SLAB_PAGE_MASK;
 
     switch (type) {
-#if 0
+
     case NCX_SLAB_SMALL:
 
         shift = slab & NCX_SLAB_SHIFT_MASK;
@@ -452,15 +450,14 @@ ncx_slab_free_locked(ncx_slab_pool_t *pool, void *p)
         if (bitmap[n] & m) {
 
             if (page->next == NULL) {
-                slots = (ncx_slab_page_t *)
-                                   ((u_char *) pool + sizeof(ncx_slab_pool_t));
+                slots = (ncx_slab_page_t *)((u_char *) pool + sizeof(ncx_slab_pool_t));
                 slot = shift - pool->min_shift;
 
-                page->next = slots[slot].next;
-                slots[slot].next = page;
+                page->next = slots[slot].next; /*(ncx_slab_page_t*)((uintptr_t)(slots[slot].next)-POOL_BASE_ADDR_LIUWEI);*/
+                slots[slot].next = (ncx_slab_page_t*)((uintptr_t)(page)-POOL_BASE_ADDR_LIUWEI);
 
-                page->prev = (uintptr_t) &slots[slot] | NCX_SLAB_SMALL;
-                page->next->prev = (uintptr_t) page | NCX_SLAB_SMALL;
+                page->prev = ( (uintptr_t)(&slots[slot]) -POOL_BASE_ADDR_LIUWEI ) | NCX_SLAB_SMALL;
+                ((ncx_slab_page_t*)((uintptr_t)(page->next)+POOL_BASE_ADDR_LIUWEI))->prev = ((uintptr_t)(page)-POOL_BASE_ADDR_LIUWEI) | NCX_SLAB_SMALL;
             }
 
             bitmap[n] &= ~m;
@@ -502,15 +499,14 @@ ncx_slab_free_locked(ncx_slab_pool_t *pool, void *p)
 
         if (slab & m) {
             if (slab == NCX_SLAB_BUSY) {
-                slots = (ncx_slab_page_t *)
-                                   ((u_char *) pool + sizeof(ncx_slab_pool_t));
+                slots = (ncx_slab_page_t *)((u_char *) pool + sizeof(ncx_slab_pool_t));
                 slot = ncx_slab_exact_shift - pool->min_shift;
 
                 page->next = slots[slot].next;
-                slots[slot].next = page;
+                slots[slot].next = (ncx_slab_page_t*)((uintptr_t)(page)-POOL_BASE_ADDR_LIUWEI);
 
-                page->prev = (uintptr_t) &slots[slot] | NCX_SLAB_EXACT;
-                page->next->prev = (uintptr_t) page | NCX_SLAB_EXACT;
+                page->prev = ((uintptr_t)(&slots[slot])-POOL_BASE_ADDR_LIUWEI ) | NCX_SLAB_EXACT;
+                ((ncx_slab_page_t*)( (uintptr_t)(page->next)+POOL_BASE_ADDR_LIUWEI ))->prev = ((uintptr_t)(page)-POOL_BASE_ADDR_LIUWEI) | NCX_SLAB_EXACT;
             }
 
             page->slab &= ~m;
@@ -541,15 +537,14 @@ ncx_slab_free_locked(ncx_slab_pool_t *pool, void *p)
         if (slab & m) {
 
             if (page->next == NULL) {
-                slots = (ncx_slab_page_t *)
-                                   ((u_char *) pool + sizeof(ncx_slab_pool_t));
+                slots = (ncx_slab_page_t *)((u_char *) pool + sizeof(ncx_slab_pool_t));
                 slot = shift - pool->min_shift;
 
                 page->next = slots[slot].next;
-                slots[slot].next = page;
+                slots[slot].next = (ncx_slab_page_t*)((uintptr_t)(page)-POOL_BASE_ADDR_LIUWEI);
 
-                page->prev = (uintptr_t) &slots[slot] | NCX_SLAB_BIG;
-                page->next->prev = (uintptr_t) page | NCX_SLAB_BIG;
+                page->prev = ((uintptr_t)(&slots[slot])-POOL_BASE_ADDR_LIUWEI) | NCX_SLAB_BIG;
+                ((ncx_slab_page_t*)((uintptr_t)(page->next)+POOL_BASE_ADDR_LIUWEI))->prev = ((uintptr_t)(page)-POOL_BASE_ADDR_LIUWEI) | NCX_SLAB_BIG;
             }
 
             page->slab &= ~m;
@@ -564,7 +559,7 @@ ncx_slab_free_locked(ncx_slab_pool_t *pool, void *p)
         }
 
         goto chunk_already_free;
-#endif
+
     case NCX_SLAB_PAGE:
 
         if ((uintptr_t) p & (ncx_pagesize - 1)) {
@@ -589,12 +584,7 @@ ncx_slab_free_locked(ncx_slab_pool_t *pool, void *p)
 
         ncx_slab_junk(p, size << ncx_pagesize_shift);
     
-        return;
-
-    default:
-        printf("Some Imposible CASE!!!!!!!\n");
-
-        
+        return;    
     }
 
     /* not reached */
@@ -631,10 +621,10 @@ ncx_slab_alloc_pages(ncx_slab_pool_t *pool, ncx_uint_t pages)
     for (page =(ncx_slab_page_t*)( (uintptr_t)(pool->free.next)+POOL_BASE_ADDR_LIUWEI); page != (uintptr_t)(&pool->free); page = (ncx_slab_page_t*)((uintptr_t)(page->next)+POOL_BASE_ADDR_LIUWEI) )
     {
         if (page->slab >= pages) {
-
+/*
              printf("+1++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
              printf("page=%u page->next=%u page->prev=%u page->slab=%u\n",(uintptr_t)(page),(uintptr_t)(page->next),(uintptr_t)(page->prev),(uintptr_t)(page->slab));
-               
+*/               
             if (page->slab > pages) {
                 page[pages].slab = page->slab - pages;
                 page[pages].next = (uintptr_t)(page->next);
@@ -653,10 +643,10 @@ ncx_slab_alloc_pages(ncx_slab_pool_t *pool, ncx_uint_t pages)
             page->slab = pages | NCX_SLAB_PAGE_START;
             page->next = NULL;
             page->prev = NCX_SLAB_PAGE;
-
+/*
             printf("+1++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
             printf("page=%u page->next=%u page->prev=%u page->slab=%u\n",(uintptr_t)(page),(uintptr_t)(page->next),(uintptr_t)(page->prev),(uintptr_t)(page->slab));
-
+*/
             if (--pages == 0) {
                 return page;
             }
@@ -693,20 +683,20 @@ ncx_slab_free_pages(ncx_slab_pool_t *pool, ncx_slab_page_t *page,
         prev->next = page->next;
         ((ncx_slab_page_t*)((uintptr_t)(page->next)+POOL_BASE_ADDR_LIUWEI))->prev = page->prev;
     }
-
+/*
     printf("-1------------------------------------------------------------------------------\n");
     printf("page=%u page->next=%u page->prev=%u page->slab=%u\n",(uintptr_t)(page),(uintptr_t)(page->next),(uintptr_t)(page->prev),(uintptr_t)(page->slab));
-
+*/
 	page->slab = pages;
 	page->prev = (uintptr_t)(&pool->free)-POOL_BASE_ADDR_LIUWEI;  
 	page->next = pool->free.next;
 	((ncx_slab_page_t*)(((uintptr_t)(page->next) +POOL_BASE_ADDR_LIUWEI )))->prev = (uintptr_t)(page)-POOL_BASE_ADDR_LIUWEI;
 
 	pool->free.next = (uintptr_t)(page)-POOL_BASE_ADDR_LIUWEI;
-
+/*
     printf("-2------------------------------------------------------------------------------\n");
     printf("page=%u page->next=%u page->prev=%u page->slab=%u\n",(uintptr_t)(page),(uintptr_t)(page->next),(uintptr_t)(page->prev),(uintptr_t)(page->slab));
-
+*/
 #ifdef PAGE_MERGE
 	if ( (uintptr_t)(pool->pages)+POOL_BASE_ADDR_LIUWEI != (uintptr_t)(page)) {
 		prev = page - 1;
@@ -778,7 +768,7 @@ ncx_slab_stat(ncx_slab_pool_t *pool, ncx_slab_stat_t *stat)
 	for (i = 0; i < stat->pages; i++)
 	{
 		slab = page->slab;
-		type = page->prev & NCX_SLAB_PAGE_MASK;
+		type = page->prev  & NCX_SLAB_PAGE_MASK;
 
 		switch (type) {
 
