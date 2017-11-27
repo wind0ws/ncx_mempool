@@ -754,6 +754,7 @@ ncx_slab_dummy_init(ncx_slab_pool_t *pool)
 {
     ncx_uint_t n;
 
+    (void)(pool);
 	ncx_pagesize = getpagesize();
 	for (n = ncx_pagesize, ncx_pagesize_shift = 0; 
 			n >>= 1; ncx_pagesize_shift++) { /* void */ }
