@@ -42,7 +42,7 @@ int main(int argc, char **argv)
 			return -1; 
 		}   
 		
-		if (i % 3 == 0) 
+//		if (i % 3 == 0) 
 		{
 			ncx_slab_free(sp, p);
 		}
