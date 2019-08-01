@@ -62,21 +62,18 @@ API
 ```c
 void ncx_slab_init(ncx_slab_pool_t *pool)
 ```
->**Description**: 初始化内存池结构；
+>**Description**: 初始化内存池结构；  
 
-<br/>
 ```c
 void *ncx_slab_alloc(ncx_slab_pool_t *pool, size_t size)
 ```
->**Description**: 内存分配
+>**Description**: 内存分配   
 
-<br/>
 ```c
 void ncx_slab_free(ncx_slab_pool_t *pool, void *ptr)
 ```
->**Description**: 释放内存
+>**Description**: 释放内存  
 
-<br/>
 ```c
 void ncx_slab_stat(ncx_slab_pool_t *pool, ncx_slab_stat_t *stat)
 ```
