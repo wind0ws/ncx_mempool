@@ -8,12 +8,12 @@
 #define LV_ALERT 16
 
 #define log(level, format, ...) \
-	do { \
-		if ( level >= LOG_LEVEL ) {\
-			fprintf(stderr, "[%c] [%s:%d] "format"\n", \
-						 #level[3],  __FUNCTION__, __LINE__, ##__VA_ARGS__); \
-		} \
-	} while(0)
+    do { \
+        if ( level >= LOG_LEVEL ) {\
+            fprintf(stdout, "[%c] [%s:%d] "format"\n", \
+                         #level[3],  __FUNCTION__, __LINE__, ##__VA_ARGS__); \
+        } \
+    } while(0)
 
 #define trace(format, ...) log(LV_TRACE, format, ##__VA_ARGS__)
 #define debug(format, ...) log(LV_DEBUG, format, ##__VA_ARGS__)
